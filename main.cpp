@@ -7,7 +7,7 @@ int main() {
     Graph g(board_size);
 
     HexGamer hex_gamer = HexGamer(g);
-    cout << "Next move: " << hex_gamer.monte_carlo_move(1) << endl;
+    cout << "Next move: " << endl << hex_gamer.monte_carlo_move(5) << endl;
 
 
     // making above shown graph

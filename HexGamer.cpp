@@ -59,7 +59,8 @@ Node HexGamer::monte_carlo_move(int num_simulations) {
     for (auto node: legal_moves) {
         for (int i = 0; i < num_simulations; i++) {
             auto graph_copy = graph;
-            graph_copy.create_board();
+            graph_copy.initialize_game();
+            //graph_copy.create_board();
             auto result = simulate_random_game(graph_copy);
             if (result == 'O') {
                 //std::cout << "winner: " << node << std::endl;

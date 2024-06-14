@@ -8,6 +8,8 @@
 #include "Node.h"
 
 void Graph::initialize_dist() {
+    dist_blue.clear();
+    dist_red.clear();
     for (int i = 0; i < V; i++) {
         for (int j = 0; j < V; j++) {
             dist_red.push_back(make_pair(Node(i, j), INF));
@@ -22,18 +24,11 @@ void Graph::update_red_cost(int x, int y, int w) {
     for (auto it = edges.begin(); it != edges.end(); it++) {
         it->second = w;
         auto neighbor = it->first;
-        auto & neighbor_edge = adj_red[neighbor];
+        auto &neighbor_edge = adj_red[neighbor];
         auto iter = find_if(neighbor_edge.begin(), neighbor_edge.end(),
                             [node](iPair pair) { return node == pair.first; });
         (*iter).second = w;
     }
-
-    /*for (auto p: adj_red) {
-        cout << endl << p.first << " (red) : ";
-        for (auto e: p.second) {
-            cout << e.first << " : " << e.second << ", ";
-        }
-    }*/
 }
 
 void Graph::update_blue_cost(int x, int y, int w) {
@@ -42,25 +37,25 @@ void Graph::update_blue_cost(int x, int y, int w) {
     for (auto it = edges.begin(); it != edges.end(); it++) {
         it->second = w;
         auto neighbor = it->first;
-        auto & neighbor_edge = adj_blue[neighbor];
+        auto &neighbor_edge = adj_blue[neighbor];
         auto iter = find_if(neighbor_edge.begin(), neighbor_edge.end(),
                             [node](iPair pair) { return node == pair.first; });
         (*iter).second = w;
     }
-
-    /*for (auto p: adj_blue) {
-        cout << endl << p.first << " (blue) : ";
-        for (auto e: p.second) {
-            cout << e.first << " : " << e.second << ", ";
-        }
-    }*/
 }
 
 Graph::Graph(int V) {
     this->V = V;
-    initialize_dist();
+    initialize_game();
+}
+
+void Graph::initialize_game() {
+    adj_blue.clear();
+    adj_red.clear();
     add_edges();
     create_board();
+    red_end_nodes.clear();
+    blue_end_nodes.clear();
     for (int i = 0; i < V; i++)
         red_end_nodes.push_back(Node(i, V - 1));
     for (int j = 0; j < V; j++)
@@ -73,15 +68,36 @@ void Graph::addEdge(Node u, Node v, int w) {
 }
 
 // Prints shortest paths from src to all other vertices
-vector<iPair> Graph::shortestPath(Node src, unordered_map<Node, vector<iPair> > adj, vector<iPair> dist) {
+bool Graph::shortestPath(Node src, unordered_map<Node, vector<iPair> > adj, vector<iPair> dist, int color) {
     priority_queue<iPair, vector<iPair>, LessThanBySecond> pq;
     pq.push(make_pair(src, 0));
     update_distance(make_pair(src, 0), dist);
 
     while (!pq.empty()) {
+        /*auto copy = pq;
+        cout << endl << "PQ ";
+        while (!copy.empty()) {
+            auto u = copy.top();
+            cout << u.first << ": " << u.second << ", ";
+            copy.pop();
+        }*/
+
         Node u = pq.top().first;
         pq.pop();
         auto adjacent_nodes = adj[u];
+
+        if (color == R_VALUE) {
+            auto it = find(red_end_nodes.begin(), red_end_nodes.end(), u);
+            if (it != red_end_nodes.end()) {
+                return true;
+            }
+        } else {
+            auto it = find(blue_end_nodes.begin(), blue_end_nodes.end(), u);
+            if (it != blue_end_nodes.end()) {
+                return true;
+            }
+        }
+
 
         for (auto i = adjacent_nodes.begin(); i != adjacent_nodes.end(); ++i) {
             Node v = i->first;
@@ -105,7 +121,7 @@ vector<iPair> Graph::shortestPath(Node src, unordered_map<Node, vector<iPair> > 
         outcomes.push_back(make_pair((*it).first, (*it).second));
     }
 
-    return outcomes;
+    return false;
 }
 
 iPair Graph::find_pair(Node node, vector<iPair> dist) {
@@ -158,11 +174,13 @@ void Graph::set_movement(int x, int y, char current_player) {
         blue_board[x][y] = I_VALUE;
         update_red_cost(x, y, 1);
         update_blue_graph(x, y);
+        red_nodes.push_back(Node(x, y));
     } else {
         blue_board[x][y] = B_VALUE;
         red_board[x][y] = I_VALUE;
         update_blue_cost(x, y, 1);
         update_red_graph(x, y);
+        blue_nodes.push_back(Node(x, y));
     }
     print_board(board);
 }
@@ -172,7 +190,7 @@ void Graph::update_red_graph(int x, int y) {
     auto edges = adj_red[node];
     for (auto it = edges.begin(); it != edges.end(); it++) {
         auto neighbor = it->first;
-        auto & neighbor_edge = adj_red[neighbor];
+        auto &neighbor_edge = adj_red[neighbor];
         auto iter = find_if(neighbor_edge.begin(), neighbor_edge.end(),
                             [node](iPair pair) { return node == pair.first; });
         neighbor_edge.erase(iter);
@@ -193,7 +211,7 @@ void Graph::update_blue_graph(int x, int y) {
     auto edges = adj_blue[node];
     for (auto it = edges.begin(); it != edges.end(); it++) {
         auto neighbor = it->first;
-        auto & neighbor_edge = adj_blue[neighbor];
+        auto &neighbor_edge = adj_blue[neighbor];
         auto iter = find_if(neighbor_edge.begin(), neighbor_edge.end(),
                             [node](iPair pair) { return node == pair.first; });
         neighbor_edge.erase(iter);
@@ -307,105 +325,37 @@ void Graph::add_edges() {
     }
 }
 
-/*void Graph::create_connections() {
-    // Connections for node: (0,0)
-    connections[Node(0, 0)].push_back(Node(0, 1));
-    connections[Node(0, 0)].push_back(Node(1, 0));
-
-    // Connections for node: (board_size-1, board_size - 1)
-    connections[Node(V - 1, V - 1)].push_back(Node(V - 1, V - 2));
-    connections[Node(V - 1, V - 1)].push_back(Node(V - 2, V - 1));
-
-    // Connections for nodes: (i, 0)
-    for (int i = 1; i < V - 1; i++) {
-        connections[Node(i, 0)].push_back(Node(i - 1, 0));
-        connections[Node(i, 0)].push_back(Node(i - 1, 1));
-        connections[Node(i, 0)].push_back(Node(i, 1));
-        connections[Node(i, 0)].push_back(Node(i + 1, 0));
-    }
-
-    // Connections for nodes: (board_size-1,0)
-    connections[Node(V - 1, 0)].push_back(Node(V - 2, 0));
-    connections[Node(V - 1, 0)].push_back(Node(V - 2, 1));
-    connections[Node(V - 1, 0)].push_back(Node(V - 1, 1));
-
-    // Connections for node: (0, board_size-1)
-    connections[Node(0, V - 1)].push_back(Node(0, V - 2));
-    connections[Node(0, V - 1)].push_back(Node(1, V - 2));
-    connections[Node(0, V - 1)].push_back(Node(1, V - 1));
-
-    // Connections for nodes: (i, board_size-1)
-    for (int i = 1; i < V - 1; i++) {
-        connections[Node(i, V - 1)].push_back(Node(i - 1, V - 1));
-        connections[Node(i, V - 1)].push_back(Node(i, V - 2));
-        connections[Node(i, V - 1)].push_back(Node(i + 1, V - 2));
-        connections[Node(i, V - 1)].push_back(Node(i + 1, V - 1));
-    }
-
-    // Connections for nodes: (0, j)
-    for (int j = 1; j < V - 1; j++) {
-        connections[Node(0, j)].push_back(Node(0, j - 1));
-        connections[Node(0, j)].push_back(Node(1, j - 1));
-        connections[Node(0, j)].push_back(Node(1, j));
-        connections[Node(0, j)].push_back(Node(0, j + 1));
-    }
-
-    // Connections for nodes: (board_size-1, j)
-    for (int j = 1; j < V - 1; j++) {
-        connections[Node(V - 1, j)].push_back(Node(V - 1, j - 1));
-        connections[Node(V - 1, j)].push_back(Node(V - 2, j));
-        connections[Node(V - 1, j)].push_back(Node(V - 2, j + 1));
-        connections[Node(V - 1, j)].push_back(Node(V - 1, j + 1));
-    }
-
-    // Connections for nodes: (i, j)
-    for (int i = 1; i < V - 1; i++) {
-        for (int j = 1; j < V - 1; j++) {
-            connections[Node(i, j)].push_back(Node(i - 1, j));
-            connections[Node(i, j)].push_back(Node(i, j - 1));
-            connections[Node(i, j)].push_back(Node(i + 1, j - 1));
-            connections[Node(i, j)].push_back(Node(i + 1, j));
-            connections[Node(i, j)].push_back(Node(i, j + 1));
-            connections[Node(i, j)].push_back(Node(i - 1, j + 1));
-        }
-    }
-}*/
-
 pair<char, bool> Graph::get_winner() {
-    vector<Node> red_nodes;
-    vector<Node> blue_nodes;
-    for (int i = 0; i < V; i++) {
-        for (int j = 0; j < V; j++) {
-            if (red_board[i][j] == R_VALUE) {
-                red_nodes.push_back(Node(i, j));
-            }
-            if (blue_board[i][j] == B_VALUE) {
-                blue_nodes.push_back(Node(i, j));
-            }
-        }
-    }
+
+    initialize_dist();
 
     auto red_0 = get_all_nodes_of_red_from_same_row(red_nodes, 0);
     auto blue_0 = get_all_nodes_of_blue_from_same_column(blue_nodes, 0);
 
     for (auto it = red_0.begin(); it != red_0.end(); it++) {
-        auto outcomes = shortestPath(*it, adj_red, dist_red);
-        for (auto iter = red_end_nodes.begin(); iter != red_end_nodes.end(); iter++) {
+        auto outcomes = shortestPath(*it, adj_red, dist_red, R_VALUE);
+        if (outcomes) {
+            return make_pair('R', true);
+        }
+        /*for (auto iter = red_end_nodes.begin(); iter != red_end_nodes.end(); iter++) {
             auto iv = find_if(outcomes.begin(), outcomes.end(), [iter](iPair ip) { return *iter == ip.first; });
             if (iv != outcomes.end() && iv->second < INF) {
                 return make_pair('R', true);
             }
-        }
+        }*/
     }
 
     for (auto it = blue_0.begin(); it != blue_0.end(); it++) {
-        auto outcomes = shortestPath(*it, adj_blue, dist_blue);
-        for (auto iter = blue_end_nodes.begin(); iter != blue_end_nodes.end(); iter++) {
+        auto outcomes = shortestPath(*it, adj_blue, dist_blue, B_VALUE);
+        if (outcomes) {
+            return make_pair('B', true);
+        }
+        /*for (auto iter = blue_end_nodes.begin(); iter != blue_end_nodes.end(); iter++) {
             auto iv = find_if(outcomes.begin(), outcomes.end(), [iter](iPair ip) { return *iter == ip.first; });
             if (iv != outcomes.end() && iv->second < INF) {
                 return make_pair('B', true);
             }
-        }
+        }*/
     }
 
     return make_pair('N', false);

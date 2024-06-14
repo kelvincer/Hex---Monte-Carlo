@@ -17,7 +17,7 @@ typedef pair<Node, int> iPair;
 typedef array<array<int, 5>, 5> Board;
 
 class Graph {
-    int V; // No. of vertices
+    int V;
 
     unordered_map<Node, vector<iPair> > adj_red;
 
@@ -41,13 +41,16 @@ class Graph {
     unordered_map<Node, vector<Node> > connections;
     vector<Node> red_end_nodes;
     vector<Node> blue_end_nodes;
+    vector<Node> red_nodes;
+    vector<Node> blue_nodes;
 
 public:
     explicit Graph(int V); // Constructor
+    void initialize_game();
 
     void addEdge(Node u, Node v, int w);
 
-    vector<iPair> shortestPath(Node src, unordered_map<Node, vector<iPair> > adj, vector<iPair> dist);
+    bool shortestPath(Node src, unordered_map<Node, vector<iPair> > adj, vector<iPair> dist, int color);
 
     iPair find_pair(Node node, vector<iPair> dist);
 
@@ -84,7 +87,7 @@ public:
 
 struct LessThanBySecond {
     bool operator()(const iPair &lhs, const iPair &rhs) const {
-        return lhs.second < rhs.second;
+        return lhs.second > rhs.second;
     }
 };
 
