@@ -14,23 +14,25 @@ using namespace std;
 constexpr char null_position = 'N';
 
 typedef pair<Node, int> iPair;
-typedef array<array<int, 5>, 5> Board;
+typedef array<array<int, 11>, 11> Board;
+typedef unordered_map<Node, vector<iPair> > Adj;
 
 class Graph {
+public:
     int V;
 
-    unordered_map<Node, vector<iPair> > adj_red;
+    Adj adj_red;
 
-    unordered_map<Node, vector<iPair> > adj_blue;
+    Adj adj_blue;
 
     vector<iPair> dist_red;
     vector<iPair> dist_blue;
 
     void initialize_dist();
 
-    void update_red_cost(int x, int y, int w);
+    void update_cost(int x, int y, int w, Adj &adj);
 
-    void update_blue_cost(int x, int y, int w);
+    void new_thr(Node node, unordered_map<Node, int> map, Graph graph, int num_simulations);
 
     Board red_board{};
     Board blue_board{};
@@ -44,7 +46,8 @@ class Graph {
     vector<Node> red_nodes;
     vector<Node> blue_nodes;
 
-public:
+    char current_player;
+
     explicit Graph(int V); // Constructor
     void initialize_game();
 
@@ -68,9 +71,7 @@ public:
 
     void set_movement(int i, int y, char current_player);
 
-    void update_red_graph(int x, int y);
-
-    void update_blue_graph(int x, int y);
+    void update_graph(int x, int y, Adj &adj);
 
     vector<Node> get_all_nodes_of_red_from_same_row(vector<Node> &nodes, int y);
 
@@ -78,11 +79,17 @@ public:
 
     void add_edges();
 
-    //void create_connections();
+    bool red_thread();
+
+    bool blue_thread();
 
     pair<char, bool> get_winner();
 
     void print_board(Board board);
+
+    void print_map(unordered_map<Node, vector<iPair> > adj);
+
+    void print_vector(vector<Node> vec);
 };
 
 struct LessThanBySecond {

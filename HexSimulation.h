@@ -7,14 +7,13 @@
 
 #include "Node.h"
 #include <vector>
-#include "Dijkstra.h"
+#include "Graph.h"
 
 using namespace std;
 
 class HexGamer {
 public:
-
-    explicit HexGamer(Graph graph);
+    explicit HexGamer(Graph &graph);
 
     vector<Node> get_legal_moves(Graph &graph);
 
@@ -24,11 +23,12 @@ public:
 
     char simulate_random_game(Graph &graph);
 
+    void function(Node node, unordered_map<Node, int> &map, Graph graph, int num_simulations);
+
     Node monte_carlo_move(int num_simulations);
 
 private:
-    Graph graph;
-    char current_player = 'X';
+    Graph &graph;
     const int R_VALUE = 0; // Value for red on the board array
     const int B_VALUE = 1; // Value for blue on the board array
     Node get_random_legal_node(Graph &graph);

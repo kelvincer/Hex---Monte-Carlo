@@ -5,7 +5,9 @@ set(CMAKE_CXX_STANDARD 17)
 
 add_executable(Hex_Dijkstra main.cpp
         Node.h
-        Dijkstra.h
-        Dijkstra.cpp
-        HexGamer.h
-        HexGamer.cpp)
+        Graph.h
+        Graph.cpp
+        HexSimulation.h
+        HexSimulation.cpp
+        HexGame.cpp
+        HexGame.h)

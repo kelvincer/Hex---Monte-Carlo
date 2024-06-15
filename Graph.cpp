@@ -4,8 +4,10 @@
 
 // C++ Program to find Dijkstra's shortest path using
 // priority_queue in STL
-#include "Dijkstra.h"
+#include "Graph.h"
 #include "Node.h"
+#include <thread>
+#include <future>
 
 void Graph::initialize_dist() {
     dist_blue.clear();
@@ -18,42 +20,48 @@ void Graph::initialize_dist() {
     }
 }
 
-void Graph::update_red_cost(int x, int y, int w) {
+void Graph::update_cost(int x, int y, int w, Adj &adj) {
     const auto node = Node(x, y);
-    auto edges = adj_red[node];
+    auto &edges = adj[node];
     for (auto it = edges.begin(); it != edges.end(); it++) {
         it->second = w;
         auto neighbor = it->first;
-        auto &neighbor_edge = adj_red[neighbor];
+        auto &neighbor_edge = adj[neighbor];
         auto iter = find_if(neighbor_edge.begin(), neighbor_edge.end(),
                             [node](iPair pair) { return node == pair.first; });
-        (*iter).second = w;
+        //(*iter).second = w;
     }
 }
 
-void Graph::update_blue_cost(int x, int y, int w) {
-    const auto node = Node(x, y);
-    auto edges = adj_blue[node];
-    for (auto it = edges.begin(); it != edges.end(); it++) {
-        it->second = w;
-        auto neighbor = it->first;
-        auto &neighbor_edge = adj_blue[neighbor];
-        auto iter = find_if(neighbor_edge.begin(), neighbor_edge.end(),
-                            [node](iPair pair) { return node == pair.first; });
-        (*iter).second = w;
+void Graph::print_map(unordered_map<Node, vector<iPair> > adj) {
+    cout << endl;
+    for (auto r: adj) {
+        cout << endl << r.first << ": ";
+        for (auto e: r.second) {
+            cout << e.first << ": " << e.second << ", ";
+        }
+    }
+}
+
+void Graph::print_vector(vector<Node> vec) {
+    cout << endl;
+    for (auto v: vec) {
+        cout << v << ", ";
     }
 }
 
 Graph::Graph(int V) {
     this->V = V;
+    create_board();
     initialize_game();
+    add_edges();
 }
 
 void Graph::initialize_game() {
-    adj_blue.clear();
+    /*adj_blue.clear();
     adj_red.clear();
-    add_edges();
-    create_board();
+    add_edges();*/
+    //create_board();
     red_end_nodes.clear();
     blue_end_nodes.clear();
     for (int i = 0; i < V; i++)
@@ -74,17 +82,27 @@ bool Graph::shortestPath(Node src, unordered_map<Node, vector<iPair> > adj, vect
     update_distance(make_pair(src, 0), dist);
 
     while (!pq.empty()) {
-        /*auto copy = pq;
-        cout << endl << "PQ ";
-        while (!copy.empty()) {
-            auto u = copy.top();
-            cout << u.first << ": " << u.second << ", ";
-            copy.pop();
-        }*/
-
         Node u = pq.top().first;
         pq.pop();
         auto adjacent_nodes = adj[u];
+
+        for (auto i = adjacent_nodes.begin(); i != adjacent_nodes.end(); ++i) {
+            Node v = i->first;
+            int weight = i->second;
+            auto adj_v = adj[v];
+            auto u_connection = find_if(adj_v.begin(), adj_v.end(), [u](iPair pair) { return u == pair.first; });
+            if (weight != u_connection->second) {
+                continue;
+            }
+
+            auto dist_v = find_pair(v, dist);
+            auto dist_u = find_pair(u, dist);
+            if (dist_v.second > dist_u.second + weight) {
+                dist_v.second = dist_u.second + weight;
+                update_distance(make_pair(v, dist_v.second), dist);
+                pq.push(make_pair(v, dist_v.second));
+            }
+        }
 
         if (color == R_VALUE) {
             auto it = find(red_end_nodes.begin(), red_end_nodes.end(), u);
@@ -95,19 +113,6 @@ bool Graph::shortestPath(Node src, unordered_map<Node, vector<iPair> > adj, vect
             auto it = find(blue_end_nodes.begin(), blue_end_nodes.end(), u);
             if (it != blue_end_nodes.end()) {
                 return true;
-            }
-        }
-
-
-        for (auto i = adjacent_nodes.begin(); i != adjacent_nodes.end(); ++i) {
-            Node v = i->first;
-            int weight = i->second;
-            auto dist_v = find_pair(v, dist);
-            auto dist_u = find_pair(u, dist);
-            if (dist_v.second > dist_u.second + weight) {
-                dist_v.second = dist_u.second + weight;
-                update_distance(make_pair(v, dist_v.second), dist);
-                pq.push(make_pair(v, dist_v.second));
             }
         }
     }
@@ -144,7 +149,6 @@ int Graph::get_size() const {
     return V;
 }
 
-
 void Graph::create_board() {
     for (int i = 0; i < V; i++) {
         for (int j = 0; j < V; j++) {
@@ -168,63 +172,42 @@ Board Graph::get_board() {
 }
 
 void Graph::set_movement(int x, int y, char current_player) {
+    this->current_player = current_player;
     board[x][y] = current_player == 'X' ? R_VALUE : B_VALUE;
     if (current_player == 'X') {
         red_board[x][y] = R_VALUE;
         blue_board[x][y] = I_VALUE;
-        update_red_cost(x, y, 1);
-        update_blue_graph(x, y);
+        update_cost(x, y, 1, adj_red);
+        update_graph(x, y, adj_blue);
         red_nodes.push_back(Node(x, y));
+        if (x == V - 1) {
+            blue_end_nodes.erase(std::remove(blue_end_nodes.begin(), blue_end_nodes.end(), Node(x, y)),
+                                 blue_end_nodes.end());
+        }
     } else {
         blue_board[x][y] = B_VALUE;
         red_board[x][y] = I_VALUE;
-        update_blue_cost(x, y, 1);
-        update_red_graph(x, y);
+        update_cost(x, y, 1, adj_blue);
+        update_graph(x, y, adj_red);
         blue_nodes.push_back(Node(x, y));
+        if (y == V - 1) {
+            red_end_nodes.erase(std::remove(red_end_nodes.begin(), red_end_nodes.end(), Node(x, y)),
+                                red_end_nodes.end());
+        }
     }
-    print_board(board);
 }
 
-void Graph::update_red_graph(int x, int y) {
+void Graph::update_graph(int x, int y, Adj &adj) {
     auto node = Node(x, y);
-    auto edges = adj_red[node];
+    auto &edges = adj[node];
     for (auto it = edges.begin(); it != edges.end(); it++) {
         auto neighbor = it->first;
-        auto &neighbor_edge = adj_red[neighbor];
+        auto &neighbor_edge = adj[neighbor];
         auto iter = find_if(neighbor_edge.begin(), neighbor_edge.end(),
                             [node](iPair pair) { return node == pair.first; });
         neighbor_edge.erase(iter);
     }
-    adj_red.erase(node);
-
-    /*cout << "Delete red node: " << node;
-    for (auto p: adj_red) {
-        cout << endl << p.first << " (red delete) : ";
-        for (auto e: p.second) {
-            cout << e.first << ", ";
-        }
-    }*/
-}
-
-void Graph::update_blue_graph(int x, int y) {
-    auto node = Node(x, y);
-    auto edges = adj_blue[node];
-    for (auto it = edges.begin(); it != edges.end(); it++) {
-        auto neighbor = it->first;
-        auto &neighbor_edge = adj_blue[neighbor];
-        auto iter = find_if(neighbor_edge.begin(), neighbor_edge.end(),
-                            [node](iPair pair) { return node == pair.first; });
-        neighbor_edge.erase(iter);
-    }
-    adj_blue.erase(node);
-
-    /*cout << "Delete blue node: " << node;
-    for (auto p: adj_blue) {
-        cout << endl << p.first << " (blue delete) : ";
-        for (auto e: p.second) {
-            cout << e.first << ", ";
-        }
-    }*/
+    adj.erase(node);
 }
 
 vector<Node> Graph::get_all_nodes_of_red_from_same_row(vector<Node> &nodes, int y) {
@@ -325,8 +308,75 @@ void Graph::add_edges() {
     }
 }
 
-pair<char, bool> Graph::get_winner() {
+bool Graph::red_thread() {
+    auto red_0 = get_all_nodes_of_red_from_same_row(red_nodes, 0);
+    for (auto it = red_0.begin(); it != red_0.end(); it++) {
+        auto outcomes = shortestPath(*it, adj_red, dist_red, R_VALUE);
+        if (outcomes) {
+            return true;
+        }
+    }
+    return false;
+}
 
+bool Graph::blue_thread() {
+    auto blue_0 = get_all_nodes_of_blue_from_same_column(blue_nodes, 0);
+    for (auto it = blue_0.begin(); it != blue_0.end(); it++) {
+        auto outcomes = shortestPath(*it, adj_blue, dist_blue, B_VALUE);
+        if (outcomes) {
+            return true;
+        }
+    }
+    return false;
+}
+
+
+/*pair<char, bool> Graph::get_winner() {
+    initialize_dist();
+
+    auto red_future = async(std::launch::async, &Graph::red_thread, this);
+
+    auto blue_future = async(std::launch::async, &Graph::blue_thread, this);
+
+
+    red_future.wait();
+
+    blue_future.wait();
+
+    if (red_future.get()) {
+        return make_pair('R', true);
+    }
+
+    if (blue_future.get()) {
+        return make_pair('B', true);
+    }
+
+    return make_pair('N', false);
+}*/
+
+/*pair<char, bool> Graph::get_winner() {
+    initialize_dist();
+
+    auto red_future = async(std::launch::async, &Graph::red_thread, this);
+
+    auto blue_future = async(std::launch::async, &Graph::blue_thread, this);
+
+    //red_future.wait();
+
+    //blue_future.wait();
+
+    if (red_future.get()) {
+        return make_pair('R', true);
+    }
+
+    if (blue_future.get()) {
+        return make_pair('B', true);
+    }
+
+    return make_pair('N', false);
+}*/
+
+pair<char, bool> Graph::get_winner() {
     initialize_dist();
 
     auto red_0 = get_all_nodes_of_red_from_same_row(red_nodes, 0);
@@ -337,12 +387,6 @@ pair<char, bool> Graph::get_winner() {
         if (outcomes) {
             return make_pair('R', true);
         }
-        /*for (auto iter = red_end_nodes.begin(); iter != red_end_nodes.end(); iter++) {
-            auto iv = find_if(outcomes.begin(), outcomes.end(), [iter](iPair ip) { return *iter == ip.first; });
-            if (iv != outcomes.end() && iv->second < INF) {
-                return make_pair('R', true);
-            }
-        }*/
     }
 
     for (auto it = blue_0.begin(); it != blue_0.end(); it++) {
@@ -350,12 +394,6 @@ pair<char, bool> Graph::get_winner() {
         if (outcomes) {
             return make_pair('B', true);
         }
-        /*for (auto iter = blue_end_nodes.begin(); iter != blue_end_nodes.end(); iter++) {
-            auto iv = find_if(outcomes.begin(), outcomes.end(), [iter](iPair ip) { return *iter == ip.first; });
-            if (iv != outcomes.end() && iv->second < INF) {
-                return make_pair('B', true);
-            }
-        }*/
     }
 
     return make_pair('N', false);

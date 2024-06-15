@@ -2,11 +2,14 @@
 // Created by kelvin cervan ruiz on 12/06/24.
 //
 
-#include "HexGamer.h"
+#include "HexSimulation.h"
+
+#include <future>
 #include <random>
-#include <map>
-#include "Dijkstra.h"
+#include "Graph.h"
 #include <vector>
+#include <thread>
+#include <unordered_map>
 
 template<typename KeyType, typename ValueType>
 std::pair<KeyType, ValueType> get_max(const std::unordered_map<KeyType, ValueType> &x) {
@@ -16,7 +19,7 @@ std::pair<KeyType, ValueType> get_max(const std::unordered_map<KeyType, ValueTyp
     });
 }
 
-HexGamer::HexGamer(Graph graph): graph(graph) {
+HexGamer::HexGamer(Graph &graph): graph(graph) {
 }
 
 vector<Node> HexGamer::get_legal_moves(Graph &graph) {
@@ -34,9 +37,8 @@ vector<Node> HexGamer::get_legal_moves(Graph &graph) {
 
 void HexGamer::make_move(int x, int y, Graph &graph) {
     if (graph.get_board()[x][y] == -1) {
-        //cout << endl << "Player: " << current_player << endl;
-        graph.set_movement(x, y, current_player);
-        current_player = current_player == 'X' ? 'O' : 'X';
+        graph.current_player = graph.current_player == 'X' ? 'O' : 'X';
+        graph.set_movement(x, y, graph.current_player);
     }
 }
 
@@ -46,32 +48,67 @@ pair<char, bool> HexGamer::is_winner(Graph &graph) {
 }
 
 char HexGamer::simulate_random_game(Graph &graph) {
-    while (!is_winner(graph).second) {
+    auto win_pair = is_winner(graph);
+    while (!win_pair.second) {
         Node node = get_random_legal_node(graph);
         make_move(node.x, node.y, graph);
+        win_pair = is_winner(graph);
     }
-    return current_player;
+    return win_pair.first;
 }
+
+void HexGamer::function(Node node, unordered_map<Node, int> &map, Graph graph, int num_simulations) {
+    for (int i = 0; i < num_simulations; i++) {
+        auto result = simulate_random_game(graph);
+        if (result == 'R') {
+            map[node] += 1;
+        }
+    }
+}
+
+/*Node HexGamer::monte_carlo_move(int num_simulations) {
+    vector<Node> legal_moves = get_legal_moves(graph);
+    unordered_map<Node, int> move_with_counts;
+    std::vector<future<void>> some_threads;
+    for (auto node: legal_moves) {
+        some_threads.push_back(async(launch::async,&HexGamer::new_thr, this, node, ref(move_with_counts), graph,
+                                      num_simulations));
+    }
+    for (auto &t: some_threads) t.wait();
+    return get_max(move_with_counts).first;
+}*/
 
 Node HexGamer::monte_carlo_move(int num_simulations) {
     vector<Node> legal_moves = get_legal_moves(graph);
-    std::unordered_map<Node, int> move_with_counts;
+    unordered_map<Node, int> move_with_counts;
+    std::vector<std::thread> some_threads;
+    for (auto node: legal_moves) {
+        some_threads.push_back(thread(&HexGamer::function, this, node, ref(move_with_counts), graph,
+                                      num_simulations));
+    }
+    for (auto &t: some_threads) t.join();
+    return get_max(move_with_counts).first;
+}
+
+/*Node HexGamer::monte_carlo_move(int num_simulations) {
+    vector<Node> legal_moves = get_legal_moves(graph);
+    if (legal_moves.size() > 20) {
+        //return legal_moves[get_random_index(legal_moves.size())];
+    }
+
+    unordered_map<Node, int> move_with_counts;
     for (auto node: legal_moves) {
         for (int i = 0; i < num_simulations; i++) {
             auto graph_copy = graph;
-            graph_copy.initialize_game();
-            //graph_copy.create_board();
             auto result = simulate_random_game(graph_copy);
-            if (result == 'O') {
-                //std::cout << "winner: " << node << std::endl;
+            if (result == 'R') {
                 move_with_counts[node] += 1;
-            } else {
-                //cout << "loser: " << node << endl;
             }
         }
     }
+
     return get_max(move_with_counts).first;
-}
+}*/
 
 int HexGamer::get_random_index(size_t size) {
     random_device rd;
