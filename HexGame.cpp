@@ -7,7 +7,7 @@
 #include "Graph.h"
 #include "HexSimulation.h"
 
-constexpr int num_simulations = 1;
+constexpr int num_simulations = 150;
 
 HexGame::HexGame(int board_size): board_size(board_size) {
 }
