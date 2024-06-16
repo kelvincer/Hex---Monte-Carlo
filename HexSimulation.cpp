@@ -3,8 +3,6 @@
 //
 
 #include "HexSimulation.h"
-
-#include <future>
 #include <random>
 #include "Graph.h"
 #include <vector>

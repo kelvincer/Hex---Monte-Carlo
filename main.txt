@@ -1,13 +1,135 @@
-//
-// Created by kelvin cervan ruiz on 12/06/24.
-//
-#include "Graph.h"
-#include "Node.h"
 #include <thread>
+#include <random>
+#include <vector>
+#include <unordered_map>
+#include <iostream>
+#include <queue>
+
+using namespace std;
+#define INF 0x3f3f3f3f
+
+// Node
+struct Node {
+    // Positions
+    int x;
+    int y;
+
+    Node(int x, int y): x{x}, y{y} {
+    }
+
+    friend std::ostream &operator<<(std::ostream &out, const Node node) {
+        out << "(" << node.x << ", " << node.y << ")";
+        return out;
+    }
+
+    bool operator==(const Node &n1) const {
+        return x == n1.x && y == n1.y;
+    }
+};
+
+// Hash for Node
+template<>
+struct std::hash<Node> {
+    std::size_t operator()(const Node &node) const noexcept {
+        std::size_t h1 = std::hash<int>{}(node.x);
+        std::size_t h2 = std::hash<int>{}(node.y);
+        return h1 ^ (h2 << 1);
+    }
+};
+
+typedef pair<Node, int> iPair;
+typedef unordered_map<Node, vector<iPair> > Adj;
+
+// Graph for game
+template<std::size_t N>
+class Graph {
+    typedef array<array<int, N>, N> Board;
+
+    int V;
+
+    // Graph connections for red player
+    Adj adj_red;
+
+    // Graph connections for blue player
+    Adj adj_blue;
+
+    // Vectors of distances
+    vector<iPair> dist_red;
+    vector<iPair> dist_blue;
+
+    void initialize_dist();
+
+    // Update board edge costs
+    void update_cost(int x, int y, int w, Adj &adj);
+
+    Board board{};
+    const int R_VALUE = 0;
+    const int B_VALUE = 1;
+    const int I_VALUE = 2;
+    unordered_map<Node, vector<Node> > connections;
+    vector<Node> red_end_nodes;
+    vector<Node> blue_end_nodes;
+    vector<Node> red_nodes;
+    vector<Node> blue_nodes;
+
+public:
+    explicit Graph(int V); // Constructor
+    void initialize_game();
+
+    // Add an edge to the graph
+    void addEdge(Node u, Node v, int w);
+
+    // Find the shortest path distance on the graph
+    bool shortestPath(Node src, unordered_map<Node, vector<iPair> > adj, vector<iPair> dist, int color);
+
+    iPair find_pair(Node node, vector<iPair> dist);
+
+    // Update distance on the graph
+    void update_distance(iPair ipair, vector<iPair> &dist);
+
+    int get_size() const;
+
+    // Create initial board
+    void create_board();
+
+    Board get_board();
+
+    // Set the new movement
+    void set_movement(int i, int y, char current_player);
+
+    // Update the graph
+    void update_graph(int x, int y, Adj &adj);
+
+    // Get red player nodes from row y
+    vector<Node> get_all_nodes_of_red_from_same_row(vector<Node> &nodes, int y);
+
+    // Get blue playe nodes from column x
+    vector<Node> get_all_nodes_of_blue_from_same_column(vector<Node> &nodes, int x);
+
+    void add_edges();
+
+    pair<char, bool> get_winner();
+
+    void print_board(Board board);
+
+    void print_map(unordered_map<Node, vector<iPair> > adj);
+
+    void print_vector(vector<Node> vec);
+
+    char current_player;
+};
+
+// For priority minimum queue
+struct LessThanBySecond {
+    bool operator()(const iPair &lhs, const iPair &rhs) const {
+        return lhs.second > rhs.second;
+    }
+};
 
 template<size_t T>
 using Board = typename Graph<T>::Board;
 
+// Initialize distances for each player
 template<size_t N>
 void Graph<N>::initialize_dist() {
     dist_blue.clear();
@@ -20,6 +142,7 @@ void Graph<N>::initialize_dist() {
     }
 }
 
+// Update the edge cost
 template<size_t N>
 void Graph<N>::update_cost(int x, int y, int w, Adj &adj) {
     const auto node = Node(x, y);
@@ -66,12 +189,14 @@ void Graph<N>::initialize_game() {
         blue_end_nodes.push_back(Node(V - 1, j));
 }
 
+// Add new edge to the graph
 template<size_t N>
 void Graph<N>::addEdge(Node u, Node v, int w) {
     adj_blue[u].push_back(make_pair(v, w));
     adj_red[u].push_back(make_pair(v, w));
 }
 
+// Find the shortest path distance using Dijkstra algorithm
 template<size_t N>
 bool Graph<N>::shortestPath(Node src, unordered_map<Node, vector<iPair> > adj, vector<iPair> dist, int color) {
     priority_queue<iPair, vector<iPair>, LessThanBySecond> pq;
@@ -127,6 +252,7 @@ iPair Graph<N>::find_pair(Node node, vector<iPair> dist) {
     return make_pair(node, INF);
 }
 
+// Update edge distance with new cost
 template<size_t N>
 void Graph<N>::update_distance(iPair ipair, vector<iPair> &dist) {
     if (auto it = find_if(dist.begin(), dist.end(), [ipair](iPair ip) { return ipair.first == ip.first; });
@@ -135,11 +261,13 @@ void Graph<N>::update_distance(iPair ipair, vector<iPair> &dist) {
     }
 }
 
+// Get size of the board
 template<size_t N>
 int Graph<N>::get_size() const {
     return V;
 }
 
+// Create initial board with arrays
 template<size_t N>
 void Graph<N>::create_board() {
     for (int i = 0; i < V; i++) {
@@ -149,11 +277,13 @@ void Graph<N>::create_board() {
     }
 }
 
+// Get board
 template<size_t N>
 Board<N> Graph<N>::get_board() {
     return board;
 }
 
+// Set new player movements
 template<size_t N>
 void Graph<N>::set_movement(int x, int y, char current_player) {
     this->current_player = current_player;
@@ -177,6 +307,7 @@ void Graph<N>::set_movement(int x, int y, char current_player) {
     }
 }
 
+// Update graph with deleted nodes
 template<size_t N>
 void Graph<N>::update_graph(int x, int y, Adj &adj) {
     auto node = Node(x, y);
@@ -191,6 +322,7 @@ void Graph<N>::update_graph(int x, int y, Adj &adj) {
     adj.erase(node);
 }
 
+// Get nodes of row y
 template<size_t N>
 vector<Node> Graph<N>::get_all_nodes_of_red_from_same_row(vector<Node> &nodes, int y) {
     auto predicate = [y](const Node n) {
@@ -208,6 +340,7 @@ vector<Node> Graph<N>::get_all_nodes_of_red_from_same_row(vector<Node> &nodes, i
     return occurrences;
 }
 
+// Get nodes of column x
 template<size_t N>
 vector<Node> Graph<N>::get_all_nodes_of_blue_from_same_column(vector<Node> &nodes, int x) {
     auto predicate = [x](const Node n) {
@@ -225,6 +358,7 @@ vector<Node> Graph<N>::get_all_nodes_of_blue_from_same_column(vector<Node> &node
     return occurrences;
 }
 
+// Add the initial edges of the board
 template<size_t N>
 void Graph<N>::add_edges() {
     int edge_cost = INF;
@@ -292,6 +426,7 @@ void Graph<N>::add_edges() {
     }
 }
 
+// Get the winner of the game
 template<size_t N>
 pair<char, bool> Graph<N>::get_winner() {
     initialize_dist();
@@ -316,6 +451,7 @@ pair<char, bool> Graph<N>::get_winner() {
     return make_pair('N', false);
 }
 
+// Print the board
 template<size_t N>
 void Graph<N>::print_board(Board board) {
     cout << endl;
@@ -371,3 +507,247 @@ void Graph<N>::print_board(Board board) {
 
 template class Graph<7>;
 template class Graph<11>;
+
+// Class for making the simulation
+template<size_t N>
+class HexSimulation {
+public:
+
+    explicit HexSimulation(Graph<N> &graph);
+
+    // Get valid nodes for players
+    vector<Node> get_legal_moves(Graph<N> &graph);
+
+    // Make a new player move
+    void make_move(int x, int y, Graph<N> &graph);
+
+    // Get the game winner
+    pair<char, bool> is_winner(Graph<N> &graph);
+
+    // Simulate a new game
+    char simulate_random_game(Graph<N> &graph);
+
+    // For concurrent game simulation
+    void function(Node node, unordered_map<Node, int> &map, Graph<N> graph, int num_simulations);
+
+    // Initialize simulation
+    Node monte_carlo_move(int num_simulations);
+
+private:
+    Graph<N> &graph;
+
+    const int R_VALUE = 0; // Value for red on the board array
+    const int B_VALUE = 1; // Value for blue on the board array
+
+    // Get a valid node for gamers
+    Node get_random_legal_node(Graph<N> &graph);
+
+    int get_random_index(size_t size);
+};
+
+// For get the maximum value from the map
+template<typename KeyType, typename ValueType>
+std::pair<KeyType, ValueType> get_max(const std::unordered_map<KeyType, ValueType> &x) {
+    using pairtype = std::pair<KeyType, ValueType>;
+    return *std::max_element(x.begin(), x.end(), [](const pairtype &p1, const pairtype &p2) {
+        return p1.second < p2.second;
+    });
+}
+
+template<size_t N>
+HexSimulation<N>::HexSimulation(Graph<N> &graph): graph(graph) {
+}
+
+ // Get valid nodes for players
+template<size_t N>
+vector<Node> HexSimulation<N>::get_legal_moves(Graph<N> &graph) {
+    vector<Node> legal_moves;
+    for (int j = 0; j < graph.get_size(); j++) {
+        for (int i = 0; i < graph.get_size(); i++) {
+            if (graph.get_board()[i][j] == -1) {
+                legal_moves.push_back(Node(i, j));
+            }
+        }
+    }
+
+    return legal_moves;
+}
+
+// Make a new player move
+template<size_t N>
+void HexSimulation<N>::make_move(int x, int y, Graph<N> &graph) {
+    if (graph.get_board()[x][y] == -1) {
+        graph.current_player = graph.current_player == 'X' ? 'O' : 'X';
+        graph.set_movement(x, y, graph.current_player);
+    }
+}
+
+// Get the game winner
+template<size_t N>
+pair<char, bool> HexSimulation<N>::is_winner(Graph<N> &graph) {
+    auto winner = graph.get_winner();
+    return winner;
+}
+
+// Simulate a new game
+template<size_t N>
+char HexSimulation<N>::simulate_random_game(Graph<N> &graph) {
+    auto win_pair = is_winner(graph);
+    while (!win_pair.second) {
+        Node node = get_random_legal_node(graph);
+        make_move(node.x, node.y, graph);
+        win_pair = is_winner(graph);
+    }
+    return win_pair.first;
+}
+
+// For concurrent game simulation using threads
+template<size_t N>
+void HexSimulation<N>::function(Node node, unordered_map<Node, int> &map, Graph<N> graph, int num_simulations) {
+    for (int i = 0; i < num_simulations; i++) {
+        auto result = simulate_random_game(graph);
+        if (result == 'R') {
+            map[node] += 1;
+        }
+    }
+}
+
+// Initialize simulation
+template<size_t N>
+Node HexSimulation<N>::monte_carlo_move(int num_simulations) {
+    vector<Node> legal_moves = get_legal_moves(graph);
+    unordered_map<Node, int> move_with_counts;
+    std::vector<std::thread> some_threads;
+    for (auto node: legal_moves) {
+        some_threads.push_back(thread(&HexSimulation::function, this, node, ref(move_with_counts), graph,
+                                      num_simulations));
+    }
+    for (auto &t: some_threads) t.join();
+    return get_max(move_with_counts).first;
+}
+
+// Get random integer
+template<size_t N>
+int HexSimulation<N>::get_random_index(size_t size) {
+    random_device rd;
+    default_random_engine engine{rd()};
+    uniform_int_distribution<> distribution{0, static_cast<int>(size - 1)};
+    return distribution(engine);
+}
+
+ // Get a valid node for gamers
+template<std::size_t N>
+Node HexSimulation<N>::get_random_legal_node(Graph<N> &graph) {
+    auto legal_moves = get_legal_moves(graph);
+    auto legal_move = legal_moves[get_random_index(legal_moves.size())];
+    return legal_move;
+}
+
+template class HexSimulation<7>;
+template class HexSimulation<11>;
+
+// Class for create a new game
+class HexGame {
+    int board_size;
+    const int R_VALUE = 0;
+    const int B_VALUE = 1;
+    const int I_VALUE = 2;
+
+public:
+    HexGame(int);
+
+    void start_game() const;
+};
+
+constexpr int num_simulations = 150;
+
+HexGame::HexGame(int board_size): board_size(board_size) {
+}
+
+// Helper function to initialize the game
+template<size_t N>
+void start_playing(Graph<N> &graph, HexSimulation<N> &hex_simulation, int board_size) {
+    char player_one, player_two;
+    cout << "Choose your color Red(enter R) or Blue(enter B): ";
+    cin >> player_one;
+    if (player_one == 'R') {
+        player_two = 'B';
+    } else {
+        player_two = 'R';
+    }
+    cout << "Player one: " << player_one << ", player two: " << player_two << endl;
+
+    int input_x, input_y;
+
+    bool red_turn = player_one == 'R';
+
+    // Print board
+    graph.print_board(graph.get_board());
+
+    bool is_computer_turn = false;
+
+    // Loop of the game
+    while (true) {
+        if (is_computer_turn) {
+            cout << "Computing next movement..." << endl;
+            Node node = hex_simulation.monte_carlo_move(num_simulations);
+            input_x = node.x + 1;
+            input_y = node.y + 1;
+        } else {
+            if (red_turn) {
+                cout << "Red(R) enter a position (i j): ";
+                cin >> input_x >> input_y;
+            } else {
+                cout << "Blue(B) enter a position (i j): ";
+                cin >> input_x >> input_y;
+            }
+        }
+        char s = red_turn ? 'X' : 'O';
+        int x = input_x - 1, y = input_y - 1;
+
+        if (is_computer_turn)
+            cout << "Computer movement: " << input_x << " " << input_y << endl;
+
+        if (graph.get_board()[x][y] != -1 || x < 0 || x > board_size || y < 0 || y > board_size) {
+            cout << endl << "This position is invalid!" << endl;
+            continue;
+        }
+
+        graph.set_movement(x, y, s);
+
+        graph.print_board(graph.get_board());
+
+        auto result = graph.get_winner();
+
+        if (result.second) {
+            cout << "Winner: " << result.first << endl;
+            break;;
+        }
+        is_computer_turn = !is_computer_turn;
+        red_turn = !red_turn;
+    }
+}
+
+// Initialize the game with especific board size (7 o 11)
+void HexGame::start_game() const {
+    if (board_size == 7) {
+        Graph<7> graph(7);
+        auto hex_simulation = HexSimulation(graph);
+        start_playing(graph, hex_simulation, 7);
+    } else if (board_size == 11) {
+        Graph<11> graph(11);
+        auto hex_simulation = HexSimulation(graph);
+        start_playing(graph, hex_simulation, 11);
+    } else {
+        cout << "Wrong board size. Please restart the game.";
+    }
+}
+
+// Main function
+int main() {
+    int board_size;
+    cout << "Welcome to Hex Game. Enter the size of the board, 7 o 11: ";
+    cin >> board_size;
+    auto hex_game = HexGame(board_size);
+    hex_game.start_game();
+}

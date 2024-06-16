@@ -31,8 +31,6 @@ class Graph {
 
     void update_cost(int x, int y, int w, Adj &adj);
 
-    Board red_board{};
-    Board blue_board{};
     Board board{};
     const int R_VALUE = 0;
     const int B_VALUE = 1;
@@ -58,10 +56,6 @@ public:
     int get_size() const;
 
     void create_board();
-
-    Board get_blue_board();
-
-    Board get_red_board();
 
     Board get_board();
 
