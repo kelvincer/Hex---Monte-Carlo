@@ -11,14 +11,13 @@
 using namespace std;
 #define INF 0x3f3f3f3f
 
-constexpr char null_position = 'N';
-
 typedef pair<Node, int> iPair;
-typedef array<array<int, 11>, 11> Board;
 typedef unordered_map<Node, vector<iPair> > Adj;
 
+template<std::size_t N>
 class Graph {
-public:
+    typedef array<array<int, N>, N> Board;
+
     int V;
 
     Adj adj_red;
@@ -32,8 +31,6 @@ public:
 
     void update_cost(int x, int y, int w, Adj &adj);
 
-    void new_thr(Node node, unordered_map<Node, int> map, Graph graph, int num_simulations);
-
     Board red_board{};
     Board blue_board{};
     Board board{};
@@ -46,8 +43,7 @@ public:
     vector<Node> red_nodes;
     vector<Node> blue_nodes;
 
-    char current_player;
-
+public:
     explicit Graph(int V); // Constructor
     void initialize_game();
 
@@ -79,10 +75,6 @@ public:
 
     void add_edges();
 
-    bool red_thread();
-
-    bool blue_thread();
-
     pair<char, bool> get_winner();
 
     void print_board(Board board);
@@ -90,6 +82,8 @@ public:
     void print_map(unordered_map<Node, vector<iPair> > adj);
 
     void print_vector(vector<Node> vec);
+
+    char current_player;
 };
 
 struct LessThanBySecond {

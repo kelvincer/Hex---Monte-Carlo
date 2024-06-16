@@ -1,15 +1,15 @@
 //
 // Created by kelvin cervan ruiz on 12/06/24.
 //
-
-// C++ Program to find Dijkstra's shortest path using
-// priority_queue in STL
 #include "Graph.h"
 #include "Node.h"
 #include <thread>
-#include <future>
 
-void Graph::initialize_dist() {
+template<size_t T>
+using Board = typename Graph<T>::Board;
+
+template<size_t N>
+void Graph<N>::initialize_dist() {
     dist_blue.clear();
     dist_red.clear();
     for (int i = 0; i < V; i++) {
@@ -20,20 +20,17 @@ void Graph::initialize_dist() {
     }
 }
 
-void Graph::update_cost(int x, int y, int w, Adj &adj) {
+template<size_t N>
+void Graph<N>::update_cost(int x, int y, int w, Adj &adj) {
     const auto node = Node(x, y);
     auto &edges = adj[node];
     for (auto it = edges.begin(); it != edges.end(); it++) {
         it->second = w;
-        auto neighbor = it->first;
-        auto &neighbor_edge = adj[neighbor];
-        auto iter = find_if(neighbor_edge.begin(), neighbor_edge.end(),
-                            [node](iPair pair) { return node == pair.first; });
-        //(*iter).second = w;
     }
 }
 
-void Graph::print_map(unordered_map<Node, vector<iPair> > adj) {
+template<size_t N>
+void Graph<N>::print_map(unordered_map<Node, vector<iPair> > adj) {
     cout << endl;
     for (auto r: adj) {
         cout << endl << r.first << ": ";
@@ -43,25 +40,24 @@ void Graph::print_map(unordered_map<Node, vector<iPair> > adj) {
     }
 }
 
-void Graph::print_vector(vector<Node> vec) {
+template<size_t N>
+void Graph<N>::print_vector(vector<Node> vec) {
     cout << endl;
     for (auto v: vec) {
         cout << v << ", ";
     }
 }
 
-Graph::Graph(int V) {
+template<size_t N>
+Graph<N>::Graph(int V) {
     this->V = V;
     create_board();
     initialize_game();
     add_edges();
 }
 
-void Graph::initialize_game() {
-    /*adj_blue.clear();
-    adj_red.clear();
-    add_edges();*/
-    //create_board();
+template<size_t N>
+void Graph<N>::initialize_game() {
     red_end_nodes.clear();
     blue_end_nodes.clear();
     for (int i = 0; i < V; i++)
@@ -70,13 +66,14 @@ void Graph::initialize_game() {
         blue_end_nodes.push_back(Node(V - 1, j));
 }
 
-void Graph::addEdge(Node u, Node v, int w) {
+template<size_t N>
+void Graph<N>::addEdge(Node u, Node v, int w) {
     adj_blue[u].push_back(make_pair(v, w));
     adj_red[u].push_back(make_pair(v, w));
 }
 
-// Prints shortest paths from src to all other vertices
-bool Graph::shortestPath(Node src, unordered_map<Node, vector<iPair> > adj, vector<iPair> dist, int color) {
+template<size_t N>
+bool Graph<N>::shortestPath(Node src, unordered_map<Node, vector<iPair> > adj, vector<iPair> dist, int color) {
     priority_queue<iPair, vector<iPair>, LessThanBySecond> pq;
     pq.push(make_pair(src, 0));
     update_distance(make_pair(src, 0), dist);
@@ -117,19 +114,11 @@ bool Graph::shortestPath(Node src, unordered_map<Node, vector<iPair> > adj, vect
         }
     }
 
-    vector<iPair> outcomes;
-
-    //printf("Vertex Distance from Source\n");
-    for (auto it = dist.begin(); it != dist.end(); it++) {
-        //printf("%d \t\t %d\n", (*it).first, dist[i]);
-        // cout << (*it).first << "\t\t" << (*it).second << endl;
-        outcomes.push_back(make_pair((*it).first, (*it).second));
-    }
-
     return false;
 }
 
-iPair Graph::find_pair(Node node, vector<iPair> dist) {
+template<size_t N>
+iPair Graph<N>::find_pair(Node node, vector<iPair> dist) {
     for (auto it = dist.begin(); it != dist.end(); it++) {
         if (it->first == node) {
             return make_pair(node, it->second);
@@ -138,18 +127,21 @@ iPair Graph::find_pair(Node node, vector<iPair> dist) {
     return make_pair(node, INF);
 }
 
-void Graph::update_distance(iPair ipair, vector<iPair> &dist) {
+template<size_t N>
+void Graph<N>::update_distance(iPair ipair, vector<iPair> &dist) {
     if (auto it = find_if(dist.begin(), dist.end(), [ipair](iPair ip) { return ipair.first == ip.first; });
         it != dist.end()) {
         (*it).second = ipair.second;
     }
 }
 
-int Graph::get_size() const {
+template<size_t N>
+int Graph<N>::get_size() const {
     return V;
 }
 
-void Graph::create_board() {
+template<size_t N>
+void Graph<N>::create_board() {
     for (int i = 0; i < V; i++) {
         for (int j = 0; j < V; j++) {
             blue_board[i][j] = -1;
@@ -159,19 +151,23 @@ void Graph::create_board() {
     }
 }
 
-Board Graph::get_blue_board() {
+template<size_t N>
+Board<N> Graph<N>::get_blue_board() {
     return blue_board;
 }
 
-Board Graph::get_red_board() {
+template<size_t N>
+Board<N> Graph<N>::get_red_board() {
     return red_board;
 }
 
-Board Graph::get_board() {
+template<size_t N>
+Board<N> Graph<N>::get_board() {
     return board;
 }
 
-void Graph::set_movement(int x, int y, char current_player) {
+template<size_t N>
+void Graph<N>::set_movement(int x, int y, char current_player) {
     this->current_player = current_player;
     board[x][y] = current_player == 'X' ? R_VALUE : B_VALUE;
     if (current_player == 'X') {
@@ -197,7 +193,8 @@ void Graph::set_movement(int x, int y, char current_player) {
     }
 }
 
-void Graph::update_graph(int x, int y, Adj &adj) {
+template<size_t N>
+void Graph<N>::update_graph(int x, int y, Adj &adj) {
     auto node = Node(x, y);
     auto &edges = adj[node];
     for (auto it = edges.begin(); it != edges.end(); it++) {
@@ -210,7 +207,8 @@ void Graph::update_graph(int x, int y, Adj &adj) {
     adj.erase(node);
 }
 
-vector<Node> Graph::get_all_nodes_of_red_from_same_row(vector<Node> &nodes, int y) {
+template<size_t N>
+vector<Node> Graph<N>::get_all_nodes_of_red_from_same_row(vector<Node> &nodes, int y) {
     auto predicate = [y](const Node n) {
         return n.y == y;
     };
@@ -226,7 +224,8 @@ vector<Node> Graph::get_all_nodes_of_red_from_same_row(vector<Node> &nodes, int 
     return occurrences;
 }
 
-vector<Node> Graph::get_all_nodes_of_blue_from_same_column(vector<Node> &nodes, int x) {
+template<size_t N>
+vector<Node> Graph<N>::get_all_nodes_of_blue_from_same_column(vector<Node> &nodes, int x) {
     auto predicate = [x](const Node n) {
         return n.x == x;
     };
@@ -242,7 +241,8 @@ vector<Node> Graph::get_all_nodes_of_blue_from_same_column(vector<Node> &nodes, 
     return occurrences;
 }
 
-void Graph::add_edges() {
+template<size_t N>
+void Graph<N>::add_edges() {
     int edge_cost = INF;
 
     // Connections for node: (0,0)
@@ -308,75 +308,8 @@ void Graph::add_edges() {
     }
 }
 
-bool Graph::red_thread() {
-    auto red_0 = get_all_nodes_of_red_from_same_row(red_nodes, 0);
-    for (auto it = red_0.begin(); it != red_0.end(); it++) {
-        auto outcomes = shortestPath(*it, adj_red, dist_red, R_VALUE);
-        if (outcomes) {
-            return true;
-        }
-    }
-    return false;
-}
-
-bool Graph::blue_thread() {
-    auto blue_0 = get_all_nodes_of_blue_from_same_column(blue_nodes, 0);
-    for (auto it = blue_0.begin(); it != blue_0.end(); it++) {
-        auto outcomes = shortestPath(*it, adj_blue, dist_blue, B_VALUE);
-        if (outcomes) {
-            return true;
-        }
-    }
-    return false;
-}
-
-
-/*pair<char, bool> Graph::get_winner() {
-    initialize_dist();
-
-    auto red_future = async(std::launch::async, &Graph::red_thread, this);
-
-    auto blue_future = async(std::launch::async, &Graph::blue_thread, this);
-
-
-    red_future.wait();
-
-    blue_future.wait();
-
-    if (red_future.get()) {
-        return make_pair('R', true);
-    }
-
-    if (blue_future.get()) {
-        return make_pair('B', true);
-    }
-
-    return make_pair('N', false);
-}*/
-
-/*pair<char, bool> Graph::get_winner() {
-    initialize_dist();
-
-    auto red_future = async(std::launch::async, &Graph::red_thread, this);
-
-    auto blue_future = async(std::launch::async, &Graph::blue_thread, this);
-
-    //red_future.wait();
-
-    //blue_future.wait();
-
-    if (red_future.get()) {
-        return make_pair('R', true);
-    }
-
-    if (blue_future.get()) {
-        return make_pair('B', true);
-    }
-
-    return make_pair('N', false);
-}*/
-
-pair<char, bool> Graph::get_winner() {
+template<size_t N>
+pair<char, bool> Graph<N>::get_winner() {
     initialize_dist();
 
     auto red_0 = get_all_nodes_of_red_from_same_row(red_nodes, 0);
@@ -399,7 +332,8 @@ pair<char, bool> Graph::get_winner() {
     return make_pair('N', false);
 }
 
-void Graph::print_board(Board board) {
+template<size_t N>
+void Graph<N>::print_board(Board board) {
     cout << endl;
 
     int h = 0;
@@ -450,3 +384,6 @@ void Graph::print_board(Board board) {
     }
     cout << endl;
 }
+
+template class Graph<7>;
+template class Graph<11>;

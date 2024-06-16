@@ -9,5 +9,5 @@ add_executable(Hex_Dijkstra main.cpp
         Graph.cpp
         HexSimulation.h
         HexSimulation.cpp
-        HexGame.cpp
-        HexGame.h)
+        HexGame.h
+        HexGame.cpp)
